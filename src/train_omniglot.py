@@ -4,6 +4,7 @@ import torch
 import os
 import params
 from model import EmbeddingNet
+from prototypical_loss import PrototypicalLoss as Loss
 
 if __name__ == "__main__":
 
@@ -21,6 +22,8 @@ if __name__ == "__main__":
     model = EmbeddingNet(img_channels=1, hidden_channels=64, embedded_channels=64).to(device)
     print(model)
 
+    loss_fn = Loss(params.num_support_tr).prototypical_loss
+
     for epoch in range(params.epochs):
         tr_iter = iter(dataloader)
         for batch in tr_iter:
@@ -29,3 +32,5 @@ if __name__ == "__main__":
             print(x.size(), y.size())
             x_embed = model(x)
             print(x_embed.size())
+            loss_val, acc_val = loss_fn(x_embed, y, params.num_support_tr)
+
