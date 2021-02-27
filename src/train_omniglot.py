@@ -22,7 +22,7 @@ if __name__ == "__main__":
     model = EmbeddingNet(img_channels=1, hidden_channels=64, embedded_channels=64).to(device)
     print(model)
 
-    loss_fn = Loss(params.num_support_tr).prototypical_loss
+    loss_fn = Loss(params.num_support_tr).to(device)
 
     for epoch in range(params.epochs):
         tr_iter = iter(dataloader)
@@ -32,5 +32,5 @@ if __name__ == "__main__":
             print(x.size(), y.size())
             x_embed = model(x)
             print(x_embed.size())
-            loss_val, acc_val = loss_fn(x_embed, y, params.num_support_tr)
+            loss_val, acc_val = loss_fn(x_embed, y)
 
