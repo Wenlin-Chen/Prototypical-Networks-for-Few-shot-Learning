@@ -5,3 +5,6 @@ iterations = 100
 epochs = 100
 classes_per_it_tr = 60
 classes_per_it_val = 5
+learning_rate = 0.001
+lr_scheduler_step = 20
+lr_scheduler_gamma = 0.5

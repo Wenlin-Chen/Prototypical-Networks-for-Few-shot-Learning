@@ -89,6 +89,7 @@ class PrototypicalLoss(torch.nn.Module):
         # y_hat shape: [n_class, n_query]
         _, y_hat = log_p_y.max(dim=1)
 
+        '''
         print("""query: \t \t {} \n 
             prototype: \t \t {} \n 
             dists: \t \t {} \n 
@@ -99,13 +100,14 @@ class PrototypicalLoss(torch.nn.Module):
             prototype.size(), dists.size(),
             query_target.size(), log_p_y.size(),
             query_target2.size(), y_hat.size()))
+        '''
 
         # Compute loss and accuracy
         # Loss is the average negative log likelihoods for target class
         # Accuracy is the average number of correct classification
         loss_val = -log_p_y.gather(1, query_target).mean()
         acc_val = y_hat.eq(query_target2).float().mean()
-        print("loss_val = {} \n acc_val = {}".format(loss_val, acc_val))
+        print("loss_val = {} \n accuracy_val = {}".format(loss_val, acc_val))
         print("---------------------------------------------------------")
 
         return loss_val, acc_val
