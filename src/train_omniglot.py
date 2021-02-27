@@ -31,6 +31,7 @@ if __name__ == "__main__":
     for epoch in range(params.epochs):
         tr_iter = iter(dataloader)
         for batch in tr_iter:
+            optimizer.zero_grad()
             x, y = batch
             x, y = x.to(device), y.to(device)
             #print(x.size(), y.size())
