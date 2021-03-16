@@ -5,31 +5,47 @@ import os
 import params
 from model import EmbeddingNet
 from prototypical_loss import PrototypicalLoss as Loss
+import numpy as np
 
-if __name__ == "__main__":
 
-    device = 'cuda:0' if torch.cuda.is_available() and params.use_cuda else 'cpu'
-    print(device)
+def set_seed(seed):
+    torch.cuda.cudnn_enabled = False
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
 
-    train_dataset = OmniglotDataset(mode='train', root=os.path.dirname(os.getcwd()))
-    train_sampler = PrototypicalBatchSampler(labels=train_dataset.y,
-                                    classes_per_it=params.classes_per_it_tr,
-                                    num_samples=params.num_support_tr + params.num_query_tr,
-                                    iterations=params.iterations)
+def get_dataloader(mode):
+    if mode == 'train':
+        classes_per_it = params.classes_per_it_tr
+        num_samples = params.num_support_tr + params.num_query_tr
+    else:
+        classes_per_it = params.classes_per_it_val
+        num_samples = params.num_support_val + params.num_query_val
 
-    dataloader = torch.utils.data.DataLoader(train_dataset, batch_sampler=train_sampler)
+    dataset = OmniglotDataset(mode=mode, root=os.path.dirname(os.getcwd()))
+    sampler = PrototypicalBatchSampler(labels=dataset.y,
+                                       classes_per_it=classes_per_it,
+                                       num_samples=num_samples,
+                                       iterations=params.iterations)
+    
+    dataloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler)
 
-    model = EmbeddingNet(img_channels=1, hidden_channels=64, embedded_channels=64).to(device)
-    #print(model)
+    return dataloader
 
-    loss_fn = Loss(params.num_support_tr).to(device)
+def train(tr_dataloader, model, loss_fn, optimizer, lr_scheduler, val_dataloader, device):
 
-    optimizer = torch.optim.Adam(params=model.parameters(), lr=params.learning_rate)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, gamma=params.lr_scheduler_gamma,
-                                    step_size=params.lr_scheduler_step)
+    tr_loss = []
+    tr_acc = []
+    val_loss = []
+    val_acc = []
+    best_acc = 0.0
+    best_epoch = 0
 
     for epoch in range(params.epochs):
-        tr_iter = iter(dataloader)
+        print('======= Epoch: {} ======='.format(epoch))
+
+        model.train()
+        tr_iter = iter(tr_dataloader)
         for batch in tr_iter:
             optimizer.zero_grad()
             x, y = batch
@@ -40,9 +56,59 @@ if __name__ == "__main__":
             loss_val, acc_val = loss_fn(x_embed, y)
             loss_val.backward()
             optimizer.step()
+
+            tr_loss.append(loss_val.item())
+            tr_acc.append(acc_val.item())
+
         lr_scheduler.step()
-        '''
-        TODO: Implement validation
-        '''
+
+        avg_loss = np.mean(tr_loss[-params.iterations:])
+        avg_acc = np.mean(tr_acc[-params.iterations:])
+        print('Average Train Loss: {}, Average Train Accuracy: {}'.format(avg_loss, avg_acc))
+        
+        # validation
+        model.eval()
+        val_iter = iter(val_dataloader)
+        for batch in val_iter:
+            x, y = x.to(device), y.to(device)
+            x_embed = model(x)
+            loss_val, acc_val = loss_fn(x_embed, y)
+            val_loss.append(loss_val.item())
+            val_acc.append(acc_val.item())
+
+        avg_loss = np.mean(val_loss[-params.iterations:])
+        avg_acc = np.mean(val_acc[-params.iterations:])
+        print('Average Validation Loss: {}, Average Validation Accuracy: {}'.format(avg_loss, avg_acc))
+        if avg_acc > best_acc:
+            bets_acc = avg_acc
+            best_epoch = epoch
+
+    print('Best validation accuracy was {}, achieved in epoch {}'.format(best_acc, best_epoch))
+
+    return tr_loss, tr_acc, val_acc, val_acc, best_epoch, bets_acc
 
 
+def run():
+    set_seed(params.seed)
+
+    device = 'cuda:0' if torch.cuda.is_available() and params.use_cuda else 'cpu'
+    print(device)
+
+    tr_dataloader = get_dataloader('train')
+    val_dataloader = get_dataloader('val')
+    #test_dataloader = get_dataloader('test')
+
+    model = EmbeddingNet(img_channels=1, hidden_channels=64, embedded_channels=64).to(device)
+
+    loss_fn = Loss(params.num_support_tr, device).to(device)
+
+    optimizer = torch.optim.Adam(params=model.parameters(), lr=params.learning_rate)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, gamma=params.lr_scheduler_gamma,
+                                    step_size=params.lr_scheduler_step)
+
+
+    tr_stats = train(tr_dataloader, model, loss_fn, optimizer, lr_scheduler, val_dataloader, device)
+
+
+if __name__ == "__main__":
+    run()

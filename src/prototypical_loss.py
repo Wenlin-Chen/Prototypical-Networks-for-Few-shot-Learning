@@ -1,9 +1,10 @@
 import torch
 
 class PrototypicalLoss(torch.nn.Module):
-    def __init__(self, n_support):
+    def __init__(self, n_support, device):
         super(PrototypicalLoss, self).__init__()
         self.n_support = n_support
+        self.device = device
 
     def forward(self, input, target):
         return self.prototypical_loss(input, target, self.n_support)
@@ -70,10 +71,8 @@ class PrototypicalLoss(torch.nn.Module):
         # query_target shape (matches log_p_y): [n_class, n_class, n_query]
         # query_target2 shape (matches y_hat): [n_class, n_query]
         n_query = query_list[0].size()[0]
-        query_target = torch.arange(0, n_class).view(n_class, 1, 1).expand(
-                                                    n_class, n_class, n_query)
-        query_target2 = torch.arange(0, n_class).view(n_class, 1).expand(
-                                                                n_class, 5)
+        query_target = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_class, n_query).to(self.device)
+        query_target2 = torch.arange(0, n_class).view(n_class, 1).expand(n_class, 5).to(self.device)
 
         # Compute distances between each class' queries and each class' 
         # prototype 
@@ -107,7 +106,7 @@ class PrototypicalLoss(torch.nn.Module):
         # Accuracy is the average number of correct classification
         loss_val = -log_p_y.gather(1, query_target).mean()
         acc_val = y_hat.eq(query_target2).float().mean()
-        print("loss_val = {} \n accuracy_val = {}".format(loss_val, acc_val))
-        print("---------------------------------------------------------")
+        #print("loss_val = {} \n accuracy_val = {}".format(loss_val, acc_val))
+        #print("---------------------------------------------------------")
 
         return loss_val, acc_val
