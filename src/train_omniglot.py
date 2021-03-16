@@ -2,7 +2,7 @@ from omniglot_dataset import OmniglotDataset
 from prototypical_batch_sampler import PrototypicalBatchSampler
 import torch
 import os
-import params
+import params_omniglot as params
 from model import EmbeddingNet
 from prototypical_loss import PrototypicalLoss as Loss
 import numpy as np
