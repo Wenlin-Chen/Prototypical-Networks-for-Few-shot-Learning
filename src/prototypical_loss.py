@@ -1,13 +1,12 @@
 import torch
 
 class PrototypicalLoss(torch.nn.Module):
-    def __init__(self, n_support, device):
+    def __init__(self, device):
         super(PrototypicalLoss, self).__init__()
-        self.n_support = n_support
         self.device = device
 
-    def forward(self, input, target):
-        return self.prototypical_loss(input, target, self.n_support)
+    def forward(self, input, target, n_support):
+        return self.prototypical_loss(input, target, n_support)
 
     def euclidean_dist(self, x1, x2):
         """
@@ -72,7 +71,7 @@ class PrototypicalLoss(torch.nn.Module):
         # query_target2 shape (matches y_hat): [n_class, n_query]
         n_query = query_list[0].size()[0]
         query_target = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_class, n_query).to(self.device)
-        query_target2 = torch.arange(0, n_class).view(n_class, 1).expand(n_class, 5).to(self.device)
+        query_target2 = torch.arange(0, n_class).view(n_class, 1).expand(n_class, n_query).to(self.device)
 
         # Compute distances between each class' queries and each class' 
         # prototype 
