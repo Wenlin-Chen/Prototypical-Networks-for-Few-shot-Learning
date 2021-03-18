@@ -46,8 +46,7 @@ def get_dataloader(mode):
                                     classes_per_it=classes_per_it,
                                     num_samples=num_samples,
                                     iterations=params.iterations)
-    # dataloader = DataLoader(dataset, batch_size=params.batch_size, 
-    #                     shuffle=True, num_workers=params.num_workers)
+
     dataloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler)
 
     return dataloader

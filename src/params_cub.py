@@ -6,8 +6,6 @@ seed = 1
 
 iterations = 10
 epochs = 100
-# batch_size = 64
-# num_workers = 4
 
 # Split
 n_class = 200
