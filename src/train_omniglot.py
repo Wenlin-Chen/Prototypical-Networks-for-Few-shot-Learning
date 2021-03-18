@@ -133,7 +133,7 @@ def run():
     tr_stats = train(tr_dataloader, model, loss_fn, optimizer, lr_scheduler, val_dataloader, device)
 
     best_model_state = tr_stats[-1]
-    best_model = model.load_state_dict(best_model_state)
+    model.load_state_dict(best_model_state)
     test_acc = test(test_dataloader, model, loss_fn, device)
 
 
