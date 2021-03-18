@@ -23,7 +23,8 @@ class PrototypicalBatchSampler(object):
         - num_samples: number of samples for each iteration for each class (support + query)
         - iterations: number of iterations (episodes) per epoch
         '''
-        super(PrototypicalBatchSampler, self).__init__()
+        # super(PrototypicalBatchSampler, self).__init__()
+        super().__init__()
         self.labels = labels
         self.classes_per_it = classes_per_it
         self.sample_per_class = num_samples

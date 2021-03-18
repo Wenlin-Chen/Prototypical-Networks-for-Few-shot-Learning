@@ -1,4 +1,5 @@
 from cub_dataset import CUB, split_class, get_split
+from prototypical_batch_sampler import PrototypicalBatchSampler
 import params_cub as params
 import pandas as pd
 from pathlib import Path
@@ -27,11 +28,26 @@ def get_dataloader(mode):
     class_indices = split_class(params.n_class, params.n_class_train,
                                 params.n_class_val, mode)
 
-    x, y, _ = get_split(class_indices, params.samples_per_class, 
+    x, y = get_split(class_indices, params.samples_per_class, 
                     images, labels)
-    dataset = CUB(PATH, x, y, train=True, transform=True)
-    dataloader = DataLoader(dataset, batch_size=params.batch_size, 
-                        shuffle=True, num_workers=params.num_workers)
+    
+    if mode == 'train':
+        classes_per_it = params.classes_per_it_tr
+        num_samples = params.num_query_tr # zero-shot
+    else:
+        classes_per_it = params.classes_per_it_val
+        num_samples = params.num_query_val # zero-shot
+
+    is_train = True if mode == 'train' else False
+
+    dataset = CUB(PATH, x, y, train=is_train, transform=True)
+
+    sampler = PrototypicalBatchSampler(labels=dataset.y,
+                                    classes_per_it=classes_per_it,
+                                    num_samples=num_samples,
+                                    iterations=params.iterations)
+
+    dataloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler)
 
     return dataloader
 
@@ -54,7 +70,7 @@ def train(tr_dataloader):
         for batch in tr_iter:
             # optimizer.zero_grad()
             x, y = batch
-            print(x.shape, y.shape) # [64, 3, 224, 224], [64]
+            print(x.shape, y.shape) # [500, 3, 224, 224], [500]
             # x, y = x.to(device), y.to(device)
             #print(x.size(), y.size())
             # x_embed = model(x) # TO DO: GoogLeNet

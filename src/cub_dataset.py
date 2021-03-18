@@ -26,8 +26,10 @@ class CUB(Dataset):
         return self.num_files
     
     def __getitem__(self, index):
-        file_name = self.x[index][0]
-        y = self.y[index][0]
+        # file_name = self.x[index][0]
+        file_name = self.x[index]
+        # y = self.y[index][0]
+        y = self.y[index]
         path = self.files_path/'images'/file_name
         x = read_image(path)
         if self.transform:
@@ -65,13 +67,13 @@ def get_split(class_arr, samples_per_class, images, labels):
     
     class_arr: random sample of classes for train, val or test set
     samples_per_class: no. of images to take from each class
-    images: df of image filenames from images.txt
-    labels: df of class labels from image_class_labels.txt
+    images: df of image filenames (string) from images.txt
+    labels: df of class labels (integers) from image_class_labels.txt
     
-    x_train.shape and y_train.shape: (len(class_arr)*samples_per_class, 1)
-    indices.shape: (len(class_arr), samples_per_class)
+    x.shape and y.shape: (len(class_arr)*samples_per_class, )
     """
-    x, y, indices = None, None, None
+    x, y = None, None
+    # indices = None # index of the rows of image or label
     for i in range(len(class_arr)):
         indices_partial = labels.loc[labels['label'] == class_arr[i]].head(
                             samples_per_class).index
@@ -81,13 +83,19 @@ def get_split(class_arr, samples_per_class, images, labels):
         # initialise or stack the partial dfs
         if x is None:
             x, y = x_partial, y_partial
-            indices = indices_partial.values
+            # indices = indices_partial.values
             
         else:
             x, y = np.vstack((x, x_partial)), np.vstack((y, y_partial))
-            indices = np.vstack((indices, indices_partial.values))
-    
-    return x, y, indices
+            # indices = np.vstack((indices, indices_partial.values))
+
+    # reshape to array of size 1
+    x = x.flatten()
+    y = y.flatten()
+    # indices = indices.flatten()
+    print('flattened x, y: ', x.shape, y.shape)
+
+    return x, y 
 
 # Helper functions for transformation
 
