@@ -38,7 +38,9 @@ def get_dataloader(mode):
         classes_per_it = params.classes_per_it_val
         num_samples = params.num_query_val # zero-shot
 
-    dataset = CUB(PATH, x, y, train=True, transform=True)
+    is_train = True if mode == 'train' else False
+
+    dataset = CUB(PATH, x, y, train=is_train, transform=True)
 
     sampler = PrototypicalBatchSampler(labels=dataset.y,
                                     classes_per_it=classes_per_it,
