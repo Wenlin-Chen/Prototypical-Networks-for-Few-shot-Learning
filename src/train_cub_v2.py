@@ -1,4 +1,4 @@
-from cub_dataset import CUB, split_class, get_split
+from cub_dataset_v2 import CUB
 from prototypical_batch_sampler import PrototypicalBatchSampler
 import params_cub as params
 import pandas as pd
@@ -17,19 +17,6 @@ def get_dataloader(mode):
     """
     Mode: 'train', 'val' or 'test'
     """
-    PATH = Path(params.CUB_data_path)
-
-    images = pd.read_csv(PATH/"images.txt", header=None, sep=" ")
-    images.columns = ["id", "name"]
-
-    labels = pd.read_csv(PATH/"image_class_labels.txt", header=None, sep=" ")
-    labels.columns = ["id", "label"]
-
-    class_indices = split_class(params.n_class, params.n_class_train,
-                                params.n_class_val, mode)
-
-    x, y = get_split(class_indices, params.samples_per_class, 
-                    images, labels)
     
     if mode == 'train':
         classes_per_it = params.classes_per_it_tr
@@ -38,9 +25,9 @@ def get_dataloader(mode):
         classes_per_it = params.classes_per_it_val
         num_samples = params.num_query_val # zero-shot
 
-    is_train = (mode == 'train')
+    PATH = Path(params.CUB_data_path)
 
-    dataset = CUB(PATH, x, y, train=is_train, transform=True)
+    dataset = CUB(PATH, mode)
 
     sampler = PrototypicalBatchSampler(labels=dataset.y,
                                     classes_per_it=classes_per_it,
@@ -65,12 +52,11 @@ def train(tr_dataloader):
         print('======= Epoch: {} ======='.format(epoch))
 
         # train
-        # model.train() # TO DO: GoogLeNet
         tr_iter = iter(tr_dataloader)
         for batch in tr_iter:
             # optimizer.zero_grad()
             x, y = batch
-            print(x.shape, y.shape) # [500, 3, 224, 224], [500]
+            print(x.shape, y.shape) # [class_per_it*num_query, 3, 224, 224], [class_per_it*num_query]
             # x, y = x.to(device), y.to(device)
             #print(x.size(), y.size())
             # x_embed = model(x) # TO DO: GoogLeNet
@@ -120,3 +106,7 @@ def run():
     tr_dataloader = get_dataloader('train')
     # train(tr_dataloader, model, loss_fn, optimizer, lr_scheduler, val_dataloader, device)
     train(tr_dataloader) # temporary, for debugging
+
+
+if __name__ == '__main__':
+    run()
