@@ -134,6 +134,7 @@ def run():
 
     best_model_state = tr_stats[-1]
     model.load_state_dict(best_model_state)
+    torch.save(model.state_dict(), "best_model.pth")
     test_acc = test(test_dataloader, model, loss_fn, device)
 
 
