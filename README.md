@@ -7,3 +7,6 @@ University of Cambridge MLMI4 Team 4's replication of the paper [Prototypical Ne
 | --- | --- | --- | --- | --- |
 | Paper | 98.8% | 99.7% | 96.0% | 98.9%|
 | Our replication | 98.6% | 99.6%| 95.3% | 98.7% |
+
+### Visualization of Embedding Space (5-way, 5-shot)
+![Visualization of Embedding SpaceMLP for MNIST training curve](https://github.com/Wenlin-Chen/Prototypical-Networks-for-Few-shot-Learning/blob/main/src/visualization.png)

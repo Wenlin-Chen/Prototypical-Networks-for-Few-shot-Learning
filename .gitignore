@@ -3,3 +3,4 @@ raw/
 data/
 splits/
 *.pyc
+.ipynb_checkpoints/
