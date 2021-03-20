@@ -6,6 +6,10 @@ seed = 1
 
 iterations = 10
 epochs = 100
+learning_rate = 0.0001
+weight_decay = 0.00001
+lr_scheduler_step = 20
+lr_scheduler_gamma = 0.5
 
 # Split
 n_class = 200

@@ -46,8 +46,8 @@ class CUB(Dataset):
                 ]
         else:
             transforms_list = [
+                  transforms.Resize(256),
                   transforms.CenterCrop(params.cropped_size),
-                  transforms.Resize(image_size),
                   transforms.ToTensor(),
                 ]
 
@@ -89,7 +89,6 @@ class CUB(Dataset):
         TO DO: export the splits to CSV files
         """
         x, y = None, None
-        print(class_arr)
         # indices = None # index of the rows of image or label
         for i in range(len(class_arr)):
             indices_partial = labels.loc[labels['label'] == class_arr[i]].head(

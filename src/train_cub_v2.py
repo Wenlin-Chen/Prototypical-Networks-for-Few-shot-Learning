@@ -1,5 +1,6 @@
 from cub_dataset_v2 import CUB
-from prototypical_batch_sampler import PrototypicalBatchSampler
+from prototypical_batch_sampler import PrototypicalBatchSampler # TO DO: ZSL Loss
+from prototypical_loss import PrototypicalLoss as Loss
 import params_cub as params
 import pandas as pd
 from pathlib import Path
@@ -38,15 +39,14 @@ def get_dataloader(mode):
 
     return dataloader
 
-# def train(tr_dataloader, model, loss_fn, optimizer, lr_scheduler, val_dataloader, device):
-def train(tr_dataloader):
-    # tr_loss = []
-    # tr_acc = []
-    # val_loss = []
-    # val_acc = []
-    # best_acc = 0.0
-    # best_epoch = 0
-    # best_model_state = None
+def train(tr_dataloader, model, loss_fn, optimizer, lr_scheduler, val_dataloader, device):
+    tr_loss = []
+    tr_acc = []
+    val_loss = []
+    val_acc = []
+    best_acc = 0.0
+    best_epoch = 0
+    best_model_state = None
 
     for epoch in range(params.epochs):
         print('======= Epoch: {} ======='.format(epoch))
@@ -54,13 +54,18 @@ def train(tr_dataloader):
         # train
         tr_iter = iter(tr_dataloader)
         for batch in tr_iter:
-            # optimizer.zero_grad()
+            optimizer.zero_grad()
+            # x.shape: [class_per_it*num_query, 3, img_size, img_size]
+            # y.shape: [class_per_it*num_query]
             x, y = batch
-            print(x.shape, y.shape) # [class_per_it*num_query, 3, 224, 224], [class_per_it*num_query]
-            # x, y = x.to(device), y.to(device)
-            #print(x.size(), y.size())
-            # x_embed = model(x) # TO DO: GoogLeNet
-            #print(x_embed.size())
+            x, y = x.to(device), y.to(device)
+            print(x.size(), y.size())
+
+            bs, ncrops, c, h, w = x.size() # [500, 10, 3, 100, 100] 
+            x_embed = model(x.view(-1, c, h, w)) # fuse batch size and ncrops
+            # x-embed shape: [5000, 1000], but should be 1024-dimensional?
+            print('embedding size: ', x_embed.size()) 
+            
             # loss_val, acc_val = loss_fn(x_embed, y, params.num_support_tr)
             # loss_val.backward()
             # optimizer.step()
@@ -97,16 +102,58 @@ def train(tr_dataloader):
 
     # return tr_loss, tr_acc, val_acc, val_acc, best_epoch, best_acc, best_model_state
 
+def test(test_dataloader, model, loss_fn, device):
+    test_acc = []
+
+    model.eval()
+    with torch.no_grad():
+        for epoch in range(10):
+            test_iter = iter(test_dataloader)
+            for batch in test_iter:
+                x, y = batch
+                x, y = x.to(device), y.to(device)
+                x_embed = model(x)
+                _, acc = loss_fn(x_embed, y, params.num_support_val)
+                test_acc.append(acc.item())
+
+    avg_acc = np.mean(test_acc)
+    print('Test Accuracy: {}'.format(avg_acc))
+
+    return avg_acc
+
+
 def run():
     set_seed(params.seed)
 
-    device = 'cuda:0' if torch.cuda.is_available() and params.use_cuda else 'cpu'
+    # device = 'cuda:0' if torch.cuda.is_available() and params.use_cuda else 'cpu'
+    device = 'cpu' # force to use CPU due to MLSALT GPU out of memory
     print(device)
 
     tr_dataloader = get_dataloader('train')
-    # train(tr_dataloader, model, loss_fn, optimizer, lr_scheduler, val_dataloader, device)
-    train(tr_dataloader) # temporary, for debugging
+    val_dataloader = get_dataloader('val')
+    test_dataloader = get_dataloader('test')
+
+    # Pre-trained GoogLeNet
+    model = torch.hub.load('pytorch/vision:v0.9.0', 'googlenet', pretrained=True)
+    if device == 'cuda:0':
+        model.to('cuda')
+
+    loss_fn = Loss(device).to(device)
+
+    optimizer = torch.optim.Adam(params=model.parameters(), 
+                lr=params.learning_rate, weight_decay=params.weight_decay)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, 
+                gamma=params.lr_scheduler_gamma,
+                step_size=params.lr_scheduler_step)
 
 
-if __name__ == '__main__':
+    tr_stats = train(tr_dataloader, model, loss_fn, optimizer, lr_scheduler, 
+                    val_dataloader, device)
+
+    best_model_state = tr_stats[-1]
+    model.load_state_dict(best_model_state)
+    test_acc = test(test_dataloader, model, loss_fn, device)
+
+
+if __name__ == "__main__":
     run()
