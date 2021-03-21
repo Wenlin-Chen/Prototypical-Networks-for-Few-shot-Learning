@@ -4,7 +4,7 @@ seed = 1
 
 shot_num = 5
 
-classes_per_it_tr = 5 # train way
+classes_per_it_tr = 30 # train way
 
 classes_per_it_val = 5 # test way
 
