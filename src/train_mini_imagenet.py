@@ -14,7 +14,7 @@ def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
 
-def train(dataloader, model, loss_fn, optimizer, lr_scheduler, device):
+def train(dataloader_train, dataloader_test, model, loss_fn, optimizer, lr_scheduler, device):
 
     tr_loss = []
     tr_acc = []
@@ -24,9 +24,9 @@ def train(dataloader, model, loss_fn, optimizer, lr_scheduler, device):
     best_epoch = 0
     best_model_state = None
 
-    dataloader.way_num = params.classes_per_it_tr
     num_train_batches = len(dataloader.train_filenames)//(dataloader.num_samples_per_class* params.classes_per_it_tr)
     num_val_batches = len(dataloader.val_filenames)//(dataloader.num_samples_per_class* params.classes_per_it_val)
+
 
     for epoch in range(params.epochs):
         print('======= Epoch: {} ======='.format(epoch))
@@ -36,18 +36,19 @@ def train(dataloader, model, loss_fn, optimizer, lr_scheduler, device):
             optimizer.zero_grad()
 
             episode_train_img, episode_train_label, episode_test_img, episode_test_label = \
-            dataloader.get_batch(phase='train', idx=i)
+            dataloader_train.get_batch(phase='train', idx=i)
 
             # change from 1-hot encoding to integer
             episode_train_label = np.argmax(episode_train_label, axis=1)
             episode_test_label = np.argmax(episode_test_label, axis=1)
             
-            x = torch.from_numpy(np.moveaxis(np.concatenate((episode_train_img,episode_test_img)), 3, 1)).float()
-            y = torch.from_numpy(np.concatenate((episode_train_label,episode_test_label))).float()
+            x = torch.tensor(np.moveaxis(np.concatenate((episode_train_img,episode_test_img)), 3, 1),dtype=torch.float)
+            y = torch.tensor(np.concatenate((episode_train_label,episode_test_label)),dtype=torch.int)
             x, y = x.to(device), y.to(device)
-            print(x.size(), y.size())
+            #print(x.size(), y.size())
             x_embed = model(x)
-            print(x_embed.size())
+
+            #print(x_embed.size())
             loss_val, acc_val = loss_fn(x_embed, y, params.shot_num)
 
             loss_val.backward()
@@ -67,7 +68,7 @@ def train(dataloader, model, loss_fn, optimizer, lr_scheduler, device):
         with torch.no_grad():
             for i in range(num_val_batches):
                 episode_train_img, episode_train_label, episode_test_img, episode_test_label = \
-                dataloader.get_batch(phase='val', idx=i)
+                dataloader_test.get_batch(phase='val', idx=i)
 
                 # change from 1-hot encoding to integer
                 episode_train_label = np.argmax(episode_train_label, axis=1)
@@ -93,25 +94,24 @@ def train(dataloader, model, loss_fn, optimizer, lr_scheduler, device):
 
     return tr_loss, tr_acc, val_acc, val_acc, best_epoch, best_acc, best_model_state
 
-def test(dataloader, model, loss_fn, device):
+def test(dataloader_test, model, loss_fn, device):
     test_acc = []
 
-    dataloader.way_num = params.classes_per_it_val
-    num_test_batches = len(dataloader.test_filenames)//(dataloader.num_samples_per_class* params.classes_per_it_val)
+    num_val_batches = len(dataloader.test_filenames)//(dataloader.num_samples_per_class* params.classes_per_it_val)
 
     model.eval()
     with torch.no_grad():
-        for epoch in range(50):
+        for epoch in range(15):
             for i in range(num_test_batches):
                 episode_train_img, episode_train_label, episode_test_img, episode_test_label = \
-                dataloader.get_batch(phase='val', idx=i)
+                dataloader_test.get_batch(phase='test', idx=i)
 
                 # change from 1-hot encoding to integer
                 episode_train_label = np.argmax(episode_train_label, axis=1)
                 episode_test_label = np.argmax(episode_test_label, axis=1)
                 
                 x = torch.from_numpy(np.moveaxis(np.concatenate((episode_train_img,episode_test_img)), 3, 1)).float()
-                y = torch.from_numpy(np.concatenate((episode_train_label,episode_test_label))).float()
+                y = torch.from_numpy(np.concatenate((episode_train_label,episode_test_label))).int()
 
                 x, y = x.to(device), y.to(device)
                 x_embed = model(x)
@@ -127,19 +127,26 @@ def test(dataloader, model, loss_fn, device):
 def run():
     set_seed(params.seed)
 
-    device = 'cuda:0' if torch.cuda.is_available() and params.use_cuda else 'cpu'
+    device = 'cpu'#'cuda:0' if torch.cuda.is_available() and params.use_cuda else 'cpu'
     print(device)
 
-    dataloader = MiniImageNetDataLoader(
+    dataloader_train = MiniImageNetDataLoader(
         shot_num = params.shot_num, 
         way_num = params.classes_per_it_tr,
         episode_test_sample_num = params.num_query )
 
-    dataloader.generate_data_list(phase='train')
-    dataloader.generate_data_list(phase='val')
-    dataloader.generate_data_list(phase='test')
+    dataloader_train.generate_data_list(phase='train')
+    dataloader_train.load_list(phase='train')
 
-    dataloader.load_list(phase='all')
+    dataloader_test = MiniImageNetDataLoader(
+        shot_num = params.shot_num, 
+        way_num = params.classes_per_it_val,
+        episode_test_sample_num = params.num_query )
+    dataloader_test.generate_data_list(phase='val')
+    dataloader_test.generate_data_list(phase='test')
+    dataloader_test.load_list(phase='val')
+    dataloader_test.load_list(phase='test')
+
 
     model = EmbeddingNet(img_channels=3, hidden_channels=64, embedded_channels=64).to(device)
 
@@ -150,12 +157,12 @@ def run():
                                     step_size=params.lr_scheduler_step)
 
 
-    tr_stats = train(dataloader, model, loss_fn, optimizer, lr_scheduler, device)
+    tr_stats = train(dataloader_train, dataloader_test, model, loss_fn, optimizer, lr_scheduler, device)
 
     best_model_state = tr_stats[-1]
     model.load_state_dict(best_model_state)
-    test_acc = test(test_dataloader, model, loss_fn, device)
-
+    test_acc = test(dataloader_test, model, loss_fn, device)
 
 if __name__ == "__main__":
+    torch.autograd.set_detect_anomaly(True)
     run()
