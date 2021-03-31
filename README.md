@@ -15,4 +15,4 @@ University of Cambridge MLMI4 Team 4's replication of the paper [Prototypical Ne
 | Model | 1-shot (5-way Acc.) | 5-shot (5-way Acc.) |
 | --- | --- | --- |
 | Our replication | 48.37% | 65.37% |
-| Paper | 49.42 ± 0.78% | 68.20 ± 0.66%|
+| Paper | 49.42±0.78% | 68.20±0.66%|
